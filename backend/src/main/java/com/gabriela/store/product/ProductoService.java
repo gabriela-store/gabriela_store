@@ -162,6 +162,57 @@ public class ProductoService {
         return toDetailResponse(savedProduct, savedRelations);
     }
 
+    @Transactional
+    public ProductDetailResponse duplicate(Long idProducto) {
+        Producto original = productoRepository.findByIdWithCategories(idProducto)
+                .orElseThrow(() -> new NotFoundException("Producto no encontrado con id: " + idProducto));
+
+        String copyName = original.getNombreProducto() + " copia";
+        if (copyName.length() > 160) {
+            throw new BadRequestException(
+                    "No se puede crear la copia: el nombre resultante supera los 160 caracteres."
+            );
+        }
+
+        UsuarioAdmin admin = currentAdminService.getCurrentAdmin();
+        Producto copy = new Producto(
+                copyName,
+                original.getPrecio(),
+                original.getDescripcion(),
+                generateUniqueSlug(copyName),
+                original.getMarca(),
+                admin
+        );
+        copy.desactivar(admin);
+        Producto savedCopy = productoRepository.save(copy);
+
+        List<ProductoCategoria> relations = original.getCategorias().stream()
+                .map(relation -> new ProductoCategoria(savedCopy, relation.getCategoria()))
+                .toList();
+        productoCategoriaRepository.saveAll(relations);
+
+        List<ProductoVariante> variants = productoVarianteRepository
+                .findByProducto_IdProductoAndActivoTrueOrderByOrdenAsc(idProducto)
+                .stream()
+                .map(variant -> new ProductoVariante(
+                        savedCopy,
+                        variant.getNombre(),
+                        variant.getColorHex(),
+                        variant.getOrden()
+                ))
+                .toList();
+        productoVarianteRepository.saveAll(variants);
+
+        productoAuditLogRepository.save(new ProductoAuditLog(
+                savedCopy,
+                admin,
+                AuditAction.CREATED,
+                "Copia creada desde el producto de origen con id " + idProducto + "."
+        ));
+
+        return toDetailResponse(savedCopy, relations);
+    }
+
 
     private ProductDetailResponse toDetailResponse(Producto producto) {
         return toDetailResponse(producto, producto.getCategorias());

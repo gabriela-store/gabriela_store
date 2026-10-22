@@ -34,6 +34,31 @@ type AdminProductFormProps = {
 };
 
 const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+const MAX_PRICE_COP = 9_999_999_999;
+
+function validatePrice(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) {
+    return "El precio del producto es obligatorio.";
+  }
+
+  if (!/^\d+$/.test(raw)) {
+    if (/^-\d+(?:[.,]\d+)?$/.test(raw)) {
+      return "El precio no puede ser negativo.";
+    }
+    if (/^\d+[.,]\d+$/.test(raw)) {
+      return "El precio debe ser un entero de 0 hasta 9.999.999.999 COP.";
+    }
+    return "Ingresa un precio válido en pesos enteros.";
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed > MAX_PRICE_COP) {
+    return "El precio no puede superar 9.999.999.999 COP.";
+  }
+
+  return null;
+}
 
 export function AdminProductForm({
   eyebrow,
@@ -122,15 +147,16 @@ export function AdminProductForm({
     const normalizedDescription = descripcion.trim();
     const normalizedBrand = marca.trim();
 
-    const normalizedPrice = Number(precio.replace(",", "."));
+    const priceError = validatePrice(precio);
+    const normalizedPrice = Number(precio.trim());
 
     if (!normalizedName) {
       setValidationMessage("El nombre del producto es obligatorio.");
       return;
     }
 
-    if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
-      setValidationMessage("Ingresa un precio válido mayor o igual a cero.");
+    if (priceError) {
+      setValidationMessage(priceError);
       return;
     }
 
@@ -224,8 +250,17 @@ export function AdminProductForm({
                 value={precio}
                 onChange={(event) => setPrecio(event.target.value)}
                 min={0}
-                step={100}
+                max={MAX_PRICE_COP}
+                step={1}
                 required
+                onInvalid={(event) => {
+                  event.preventDefault();
+                  setValidationMessage(
+                    event.currentTarget.validity.badInput
+                      ? "Ingresa un precio válido en pesos enteros."
+                      : validatePrice(precio),
+                  );
+                }}
                 placeholder="Ej: 25000"
               />
             </label>
