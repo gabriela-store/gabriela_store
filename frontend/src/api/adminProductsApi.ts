@@ -212,3 +212,16 @@ export function getAdminProductAudit(
     },
   );
 }
+
+export function duplicateAdminProduct(
+  productId: number,
+): Promise<AdminProductDetail> {
+  return apiRequest<AdminProductDetail>(
+    `/api/admin/products/${productId}/duplicate`,
+    {
+      method: "POST",
+      authenticated: true,
+      authMode: "admin",
+    },
+  );
+}

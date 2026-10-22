@@ -63,6 +63,12 @@ public class ProductoAdminController {
         return productoService.create(request);
     }
 
+    @PostMapping("/{id}/duplicate")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProductDetailResponse duplicate(@PathVariable Long id) {
+        return productoService.duplicate(id);
+    }
+
     @PutMapping("/{id}")
     public ProductDetailResponse update(
             @PathVariable Long id,

@@ -13,6 +13,8 @@ public record ProductCreateRequest(
 
         @NotNull(message = "El precio del producto es obligatorio.")
         @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo.")
+        @DecimalMax(value = "9999999999", message = "El precio no puede superar 9.999.999.999 COP.")
+        @Digits(integer = 10, fraction = 0, message = "El precio debe ser un entero de hasta 9.999.999.999 COP.")
         BigDecimal precio,
 
         @Size(max = 3000, message = "La descripción no puede superar los 3000 caracteres.")

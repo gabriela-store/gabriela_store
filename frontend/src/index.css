@@ -1523,10 +1523,19 @@ img {
   border-top: 1px solid var(--color-border);
 }
 
+.admin-products-table__row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .admin-product-cell {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
+}
+
+.admin-product-cell > div:last-child {
   min-width: 0;
 }
 
@@ -1537,6 +1546,7 @@ img {
 
 .admin-product-cell strong {
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .admin-product-cell small {
@@ -1591,6 +1601,20 @@ img {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .admin-row-actions > * {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+    text-align: center;
+  }
+}
+
+@media (max-width: 360px) {
+  .admin-row-actions > * {
+    flex-basis: 100%;
+  }
 }
 
 .admin-form-card {

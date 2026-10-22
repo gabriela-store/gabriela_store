@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   activateAdminProduct,
   deactivateAdminProduct,
+  duplicateAdminProduct,
   getAdminProducts,
   type AdminProduct,
 } from "../../api/adminProductsApi";
@@ -20,9 +21,12 @@ export function AdminProductsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [actionProductId, setActionProductId] = useState<number | null>(null);
+  const [duplicatingProductId, setDuplicatingProductId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [createdCopy, setCreatedCopy] = useState<{ id: number; nombre: string } | null>(null);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_BATCH);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const duplicatingProductIdRef = useRef<number | null>(null);
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -96,6 +100,10 @@ export function AdminProductsPage() {
   }, []);
 
   async function handleToggleProduct(product: AdminProduct) {
+    if (actionProductId !== null || duplicatingProductIdRef.current !== null) {
+      return;
+    }
+
     const actionLabel = product.activo ? "desactivar" : "activar";
 
     const confirmed = window.confirm(
@@ -126,6 +134,57 @@ export function AdminProductsPage() {
       setErrorMessage(message);
     } finally {
       setActionProductId(null);
+    }
+  }
+
+  async function handleDuplicateProduct(product: AdminProduct) {
+    if (duplicatingProductIdRef.current !== null || actionProductId !== null) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `¿Crear una copia inactiva de "${product.nombre}"? La copia no incluirá imágenes.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    duplicatingProductIdRef.current = product.id;
+    setActionProductId(product.id);
+    setDuplicatingProductId(product.id);
+    setErrorMessage(null);
+    setCreatedCopy(null);
+
+    try {
+      const copy = await duplicateAdminProduct(product.id);
+      setSearchTerm("");
+      setVisibleCount(ITEMS_PER_BATCH);
+      setCreatedCopy({ id: copy.id, nombre: copy.nombre });
+      setProducts((current) => [
+        { ...copy, imagenPrincipalUrl: null },
+        ...current.filter((item) => item.id !== copy.id),
+      ]);
+
+      try {
+        const refreshed = await getAdminProducts();
+        const refreshedCopy = refreshed.find((item) => item.id === copy.id);
+        if (refreshedCopy) {
+          setProducts([
+            refreshedCopy,
+            ...refreshed.filter((item) => item.id !== copy.id),
+          ]);
+        }
+      } catch {
+        // La copia ya figura en el listado con los datos devueltos por el endpoint.
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "No fue posible crear la copia.",
+      );
+    } finally {
+      duplicatingProductIdRef.current = null;
+      setActionProductId(null);
+      setDuplicatingProductId(null);
     }
   }
 
@@ -181,6 +240,13 @@ export function AdminProductsPage() {
           />
         </label>
       </section>
+
+      {createdCopy ? (
+        <div className="form-message form-message--success" role="status">
+          Copia "{createdCopy.nombre}" creada como inactiva.{" "}
+          <Link to={`/admin/products/${createdCopy.id}/edit`}>Editar copia</Link>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="state-box">Cargando productos...</div>
@@ -259,7 +325,18 @@ export function AdminProductsPage() {
                   <button
                     className="secondary-button secondary-button--small"
                     type="button"
-                    disabled={actionProductId === product.id}
+                    disabled={actionProductId !== null}
+                    onClick={() => handleDuplicateProduct(product)}
+                  >
+                    {duplicatingProductId === product.id
+                      ? "Creando copia..."
+                      : "Crear Copia"}
+                  </button>
+
+                  <button
+                    className="secondary-button secondary-button--small"
+                    type="button"
+                    disabled={actionProductId !== null}
                     onClick={() => handleToggleProduct(product)}
                   >
                     {actionProductId === product.id
